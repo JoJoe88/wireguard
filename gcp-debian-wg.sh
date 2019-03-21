@@ -5,9 +5,7 @@
 let port=9009
 mtu=1460
 ip_list=(4 5 8 178 186 118 158 198 168 9)
-ipv6_range="fd08:620c:4df0:65eb::"
 serverip=$(curl -4 ip.sb)
-
 
 # 安装WireGuard和辅助库 resolvconf
 echo "deb http://deb.debian.org/debian/ unstable main" > /etc/apt/sources.list.d/unstable.list
@@ -23,12 +21,8 @@ fi
 # 打开ip4/ipv6防火墙转发功能
 sysctl_config() {
     sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
-    sed -i '/net.ipv6.conf.all.forwarding/d' /etc/sysctl.conf
-    sed -i '/net.ipv6.conf.default.accept_ra/d' /etc/sysctl.conf
     echo 1 > /proc/sys/net/ipv4/ip_forward
     echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
-    echo "net.ipv6.conf.all.forwarding = 1" >> /etc/sysctl.conf
-    echo "net.ipv6.conf.default.accept_ra=2" >> /etc/sysctl.conf
     sysctl -p >/dev/null 2>&1
 }
 sysctl_config
@@ -46,16 +40,15 @@ wg genkey | tee cprivatekey | wg pubkey > cpublickey
 cat <<EOF >wg0.conf
 [Interface]
 PrivateKey = $(cat sprivatekey)
-Address = 10.0.0.1/24,  ${ipv6_range}1/64
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE; ip6tables -A FORWARD -i wg0 -j ACCEPT; ip6tables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE; ip6tables -D FORWARD -i wg0 -j ACCEPT; ip6tables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-ListenPort = $port
-DNS = 8.8.8.8, 2001:4860:4860::8888
+Address = 10.0.0.1/24
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+DNS = 8.8.8.8
 MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = 10.0.0.2/32,  ${ipv6_range}188
+AllowedIPs = 10.0.0.2/24
 
 EOF
 
@@ -64,8 +57,8 @@ EOF
 cat <<EOF >client.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = 10.0.0.2/24,  ${ipv6_range}188/64
-DNS = 8.8.8.8, 2001:4860:4860::8888
+Address = 10.0.0.2/24
+DNS = 8.8.8.8
 #  MTU = $mtu
 #  PreUp =  start   .\route\routes-up.bat
 #  PostDown = start  .\route\routes-down.bat
@@ -73,7 +66,7 @@ DNS = 8.8.8.8, 2001:4860:4860::8888
 [Peer]
 PublicKey = $(cat spublickey)
 Endpoint = $serverip:$port
-AllowedIPs = 0.0.0.0/0, ::0/0
+AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 
 EOF
@@ -89,20 +82,20 @@ do
     cat <<EOF >>wg0.conf
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = $ip/32, $ip6
+AllowedIPs = $ip/24
 
 EOF
 
     cat <<EOF >wg_client_$i.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = $ip/24, $ip6/64
-DNS = 8.8.8.8, 2001:4860:4860::8888
+Address = $ip/24
+DNS = 8.8.8.8
 
 [Peer]
 PublicKey = $(cat spublickey)
 Endpoint = $serverip:$port
-AllowedIPs = 0.0.0.0/0, ::0/0
+AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25
 
 EOF
