@@ -1,5 +1,5 @@
-# 高速新VPN协议WireGuard服务端一键脚本
-# GCP香港
+#!/bin/bash
+# GCP WireGuard服务端一键脚本
 
 # 定义常量
 let port=9009
