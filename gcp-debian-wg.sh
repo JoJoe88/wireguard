@@ -39,7 +39,7 @@ MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = 10.0.0.2/32
+AllowedIPs = 10.0.0.2/24
 
 EOF
 
@@ -47,7 +47,7 @@ EOF
 cat <<EOF >client.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = 10.0.0.2/32
+Address = 10.0.0.2/24
 DNS = 8.8.8.8
 #  MTU = $mtu
 #  PreUp =  start   .\route\routes-up.bat
@@ -70,14 +70,14 @@ do
     cat <<EOF >>wg0.conf
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = $ip/32
+AllowedIPs = $ip/24
 
 EOF
 
     cat <<EOF >wg_client_$i.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = $ip/32
+Address = $ip/24
 DNS = 8.8.8.8
 
 [Peer]
