@@ -18,21 +18,12 @@ if [ ! -f '/usr/bin/qrencode' ]; then
     apt -y install qrencode
 fi
 
-# 打开ip4/ipv6防火墙转发功能
-sysctl_config() {
-    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
-    sysctl -p >/dev/null 2>&1
-}
-sysctl_config
-
 # 配置WireGuard文件目录 /etc/wireguard
 mkdir -p /etc/wireguard
-chmod 777 -R /etc/wireguard
 cd /etc/wireguard
 
 # 生成 密匙对(公匙+私匙)
+Umask 077
 wg genkey | tee sprivatekey | wg pubkey > spublickey
 wg genkey | tee cprivatekey | wg pubkey > cpublickey
 
@@ -48,16 +39,15 @@ MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = 10.0.0.2/24
+AllowedIPs = 10.0.0.2/32
 
 EOF
-
 
 # 生成客户端配置
 cat <<EOF >client.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = 10.0.0.2/24
+Address = 10.0.0.2/32
 DNS = 8.8.8.8
 #  MTU = $mtu
 #  PreUp =  start   .\route\routes-up.bat
@@ -71,25 +61,23 @@ PersistentKeepalive = 25
 
 EOF
 
-
 # 添加 2-9 号多用户配置
 for i in {2..9}
 do
     ip=10.0.0.${ip_list[$i]}
-    ip6=${ipv6_range}${ip_list[$i]}
     wg genkey | tee cprivatekey | wg pubkey > cpublickey
 
     cat <<EOF >>wg0.conf
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = $ip/24
+AllowedIPs = $ip/32
 
 EOF
 
     cat <<EOF >wg_client_$i.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = $ip/24
+Address = $ip/32
 DNS = 8.8.8.8
 
 [Peer]
@@ -102,9 +90,17 @@ EOF
     cat /etc/wireguard/wg_client_$i.conf | qrencode -o wg_client_$i.png
 done
 
-
 # 启动WireGuard
+chown -v root:root /etc/wireguard/wg0.conf
+chmod -v 600 /etc/wireguard/wg0.conf
 wg-quick up wg0
+systemctl enable wg-quick@wg0.service
 
-# 设置开机启动
-systemctl enable wg-quick@wg0
+# 打开ipv4防火墙转发功能
+sysctl_config() {
+    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+    sysctl -p >/dev/null 2>&1
+}
+sysctl_config
