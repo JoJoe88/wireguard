@@ -92,7 +92,6 @@ done
 
 # 启动WireGuard
 chown -v root:root /etc/wireguard/wg0.conf
-chmod -v 600 /etc/wireguard/wg0.conf
 wg-quick up wg0
 systemctl enable wg-quick@wg0.service
 
