@@ -11,6 +11,7 @@ serverip=$(curl -4 ip.sb)
 echo "deb http://deb.debian.org/debian/ unstable main" > /etc/apt/sources.list.d/unstable.list
 printf 'Package: *\nPin: release a=unstable\nPin-Priority: 90\n' > /etc/apt/preferences.d/limit-unstable
 apt update
+apt install linux-headers-$(uname -r) -y
 apt install wireguard resolvconf -y
 
 # 安装二维码插件
@@ -20,10 +21,10 @@ fi
 
 # 配置WireGuard文件目录 /etc/wireguard
 mkdir -p /etc/wireguard
+chmod 777 -R /etc/wireguard
 cd /etc/wireguard
 
 # 生成 密匙对(公匙+私匙)
-Umask 077
 wg genkey | tee sprivatekey | wg pubkey > spublickey
 wg genkey | tee cprivatekey | wg pubkey > cpublickey
 
