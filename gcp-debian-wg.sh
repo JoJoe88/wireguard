@@ -91,9 +91,8 @@ EOF
 done
 
 # 启动WireGuard
-chown -v root:root /etc/wireguard/wg0.conf
 wg-quick up wg0
-systemctl enable wg-quick@wg0.service
+systemctl enable wg-quick@wg0
 
 # 打开ipv4防火墙转发功能
 sysctl_config() {
