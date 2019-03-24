@@ -3,18 +3,19 @@
 
 # 定义常量
 let port=9009
-mtu=1460
-ip_list=(4 5 8 178 186 118 158 198 168 9)
-serverip=$(curl -4 ip.sb)
+    serverip=$(curl -4 ip.sb)
+    mtu=1460
+    ip_list=(4 5 8 178 186 118 158 198 168 9)
+    
 
-# 安装WireGuard和辅助库 resolvconf
+# 安装WireGuard和辅助库 resolvconf、headers
 echo "deb http://deb.debian.org/debian/ unstable main" > /etc/apt/sources.list.d/unstable.list
 printf 'Package: *\nPin: release a=unstable\nPin-Priority: 90\n' > /etc/apt/preferences.d/limit-unstable
 apt update
 apt install linux-headers-$(uname -r) -y
 apt install wireguard resolvconf -y
 
-# 安装二维码插件
+# 安装二维码插件,方便手机扫瞄添加配置
 if [ ! -f '/usr/bin/qrencode' ]; then
     apt -y install qrencode
 fi
