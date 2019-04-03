@@ -1,11 +1,11 @@
 #!/bin/bash
-# GCP WireGuard服务端一键脚本
+# GCP debian WireGuard服务端一键脚本
 
 # 定义常量
-let port=9009
-    serverip=$(curl -4 ip.sb)
-    mtu=1460
-    ip_list=(4 5 8 178 186 118 158 198 168 9)
+port=9009
+serverip=$(curl -4 ip.sb)
+mtu=1460
+ip_list=(4 5 8 178 186 118 158 198 168 9)
     
 
 # 安装WireGuard和辅助库 resolvconf、headers
@@ -22,7 +22,7 @@ fi
 
 # 配置WireGuard文件目录 /etc/wireguard
 mkdir -p /etc/wireguard
-chmod 777 -R /etc/wireguard
+chmod 755 /etc/wireguard
 cd /etc/wireguard
 
 # 生成 密匙对(公匙+私匙)
