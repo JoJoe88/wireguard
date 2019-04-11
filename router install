@@ -1,0 +1,36 @@
+# 1.安装完整版的dnsmasq-full,并修改 /etc/dnsmasq.conf： 添加一行，从dnsmasq.d读取配置文件
+conf-dir=/etc/dnsmasq.d
+
+# 2. 新建文件夹/etc/dnsmasq.d,创建三个.conf文件：
+# 2.1   /etc/dnsmasq.d/gfw.conf --这个文件里包含了被封锁的域名的列表，可按需要自行更新
+# 2.2   /etc/dnsmasq.d/option.conf --这个文件包含了Dnsmasq 的配置选项
+
+#disable resolv file
+no-resolv
+
+# 2.3   /etc/dnsmasq.d/server.conf --包含了我们要用到的DNS 服务器
+#Dnscrypt
+server=127.0.0.1
+#Google DNS
+server=8.8.8.8
+#AliYun DNS
+server=223.5.5.5
+#Open DNS
+server=208.67.220.220
+#NTT DNS
+#server=129.250.35.250
+
+# 3. Google DNS 的访问都通过route 命令添加到VPN 接口进行
+ip route add 8.8.8.8 dev wg
+
+# 4. 在/etc/iproute2/rt_tables中创建ID为100,名称为vpn的route table
+echo "100 vpn" >> /etc/iproute2/rt_tables
+
+# 5. 在用户防火墙/etc/firewall.user创建ipset,并给所有在ipset vpn中的IP打上标记1
+ipset create vpn iphash -exist
+iptables -t mangle -I PREROUTING -m set --match-set vpn dst -j MARK --set-mark 1
+
+# 6. 给所有打过标记1的IP创建iptale vpn，并让这个table都默认通过翻墙连接，并重启dnsmasq，大功告成。
+ip route add default dev wg table vpn
+ip rule add fwmark 1 priority 666 table vpn
+/etc/init.d/dnsmasq restar #好像并不需要
