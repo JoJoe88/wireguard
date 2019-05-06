@@ -115,7 +115,7 @@ iptables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate NEW -j ACCEPT
 iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE
 
 #save the iptables
-apt-get install iptables-persistent
+apt install iptables-persistent -y
 systemctl enable netfilter-persistent
 netfilter-persistent save
 
