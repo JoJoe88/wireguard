@@ -2,10 +2,10 @@
 # GCP debian WireGuard服务端一键脚本
 
 # 定义常量
-port=9009
+port=51520
 serverip=$(curl -4 ip.sb)
 mtu=1460
-ip_list=(4 5 8 178 186 118 158 198 168 9)
+ip_list=(100 118 128 138 148 158 168 178 188)
     
 
 # 安装WireGuard和辅助库 resolvconf、headers
@@ -22,7 +22,6 @@ fi
 
 # 配置WireGuard文件目录 /etc/wireguard
 mkdir -p /etc/wireguard
-chmod 755 /etc/wireguard
 cd /etc/wireguard
 
 # 生成 密匙对(公匙+私匙)
@@ -34,14 +33,11 @@ cat <<EOF >wg0.conf
 [Interface]
 PrivateKey = $(cat sprivatekey)
 Address = 10.0.0.1/24
-PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
-DNS = 8.8.8.8
 MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = 10.0.0.2/24
+AllowedIPs = 10.0.0.100/32
 
 EOF
 
@@ -49,8 +45,8 @@ EOF
 cat <<EOF >client.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = 10.0.0.2/24
-DNS = 8.8.8.8
+Address = 10.0.0.100/24
+DNS = 10.0.0.1
 #  MTU = $mtu
 #  PreUp =  start   .\route\routes-up.bat
 #  PostDown = start  .\route\routes-down.bat
@@ -63,8 +59,8 @@ PersistentKeepalive = 25
 
 EOF
 
-# 添加 2-9 号多用户配置
-for i in {2..9}
+# 添加 1-8 号多用户配置
+for i in {1..8}
 do
     ip=10.0.0.${ip_list[$i]}
     wg genkey | tee cprivatekey | wg pubkey > cpublickey
@@ -72,7 +68,7 @@ do
     cat <<EOF >>wg0.conf
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = $ip/24
+AllowedIPs = $ip/32
 
 EOF
 
@@ -80,7 +76,7 @@ EOF
 [Interface]
 PrivateKey = $(cat cprivatekey)
 Address = $ip/24
-DNS = 8.8.8.8
+DNS = 10.0.0.1
 
 [Peer]
 PublicKey = $(cat spublickey)
@@ -93,14 +89,34 @@ EOF
 done
 
 # 启动WireGuard
+chown -v root:root /etc/wireguard/wg0.conf
+chmod -v 600 /etc/wireguard/wg0.conf
 wg-quick up wg0
-systemctl enable wg-quick@wg0
 
-# 打开ipv4防火墙转发功能
-sysctl_config() {
-    sed -i '/net.ipv4.ip_forward/d' /etc/sysctl.conf
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
-    sysctl -p >/dev/null 2>&1
-}
-sysctl_config
+#Enables the interface on boot
+systemctl enable wg-quick@wg0 
+
+# Enable ipv4 ip forward
+echo 1 > /proc/sys/net/ipv4/ip_forward
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p
+
+# configure firewall rules
+iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+iptables -A INPUT -p udp -m udp --dport 51520 -m conntrack --ctstate NEW -j ACCEPT
+
+iptables -A INPUT -s 10.0.0.0/24 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
+iptables -A INPUT -s 10.0.0.0/24 -p udp -m udp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
+
+iptables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate NEW -j ACCEPT
+
+iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE
+
+#save the iptables
+apt-get install iptables-persistent
+systemctl enable netfilter-persistent
+netfilter-persistent save
+
+
