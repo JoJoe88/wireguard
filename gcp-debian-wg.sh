@@ -33,6 +33,7 @@ cat <<EOF >wg0.conf
 [Interface]
 PrivateKey = $(cat sprivatekey)
 Address = 10.0.0.1/24
+ListenPort = 51520
 MTU = $mtu
 
 [Peer]
