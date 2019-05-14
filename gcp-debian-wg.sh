@@ -6,6 +6,7 @@ port=51520
 serverip=$(curl -4 ip.sb)
 mtu=1460
 ip_list=(100 118 128 138 148 158 168 178 188)
+ipv6_range="fd08:620c:4df0:65eb::"
     
 
 # 安装WireGuard和辅助库 resolvconf、headers
@@ -32,13 +33,14 @@ wg genkey | tee cprivatekey | wg pubkey > cpublickey
 cat <<EOF >wg0.conf
 [Interface]
 PrivateKey = $(cat sprivatekey)
-Address = 10.0.0.1/24
+Address = 10.0.0.1/24, ${ipv6_range}1/64
 ListenPort = 51520
+DNS = 8.8.8.8, 2001:4860:4860::8888
 MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = 10.0.0.100/32
+AllowedIPs = 10.0.0.100/32, ${ipv6_range}100
 
 EOF
 
@@ -46,8 +48,8 @@ EOF
 cat <<EOF >client.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = 10.0.0.100/24
-DNS = 10.0.0.1
+Address = 10.0.0.100/24, ${ipv6_range}100/64
+DNS = 8.8.8.8, 2001:4860:4860::8888
 #  MTU = $mtu
 #  PreUp =  start   .\route\routes-up.bat
 #  PostDown = start  .\route\routes-down.bat
@@ -55,7 +57,7 @@ DNS = 10.0.0.1
 [Peer]
 PublicKey = $(cat spublickey)
 Endpoint = $serverip:$port
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 0.0.0.0/0, ::0/0
 PersistentKeepalive = 25
 
 EOF
@@ -64,25 +66,27 @@ EOF
 for i in {1..8}
 do
     ip=10.0.0.${ip_list[$i]}
+    ip6=${ipv6_range}${ip_list[$i]}
+   
     wg genkey | tee cprivatekey | wg pubkey > cpublickey
 
     cat <<EOF >>wg0.conf
 [Peer]
 PublicKey = $(cat cpublickey)
-AllowedIPs = $ip/32
+AllowedIPs = $ip/32, $ip6
 
 EOF
 
     cat <<EOF >wg_client_$i.conf
 [Interface]
 PrivateKey = $(cat cprivatekey)
-Address = $ip/24
-DNS = 10.0.0.1
+Address = $ip/24, $ip6/64
+DNS = 8.8.8.8, 2001:4860:4860::8888
 
 [Peer]
 PublicKey = $(cat spublickey)
 Endpoint = $serverip:$port
-AllowedIPs = 0.0.0.0/0
+AllowedIPs = 0.0.0.0/0, ::0/0
 PersistentKeepalive = 25
 
 EOF
@@ -97,27 +101,18 @@ wg-quick up wg0
 #Enables the interface on boot
 systemctl enable wg-quick@wg0 
 
-# Enable ipv4 ip forward
-echo 1 > /proc/sys/net/ipv4/ip_forward
+# Enable ip forward
 echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.conf
+echo "net.ipv6.conf.default.accept_ra=2" >> /etc/sysctl.conf
 sysctl -p
 
-# configure firewall rules
-iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-
-iptables -A INPUT -p udp -m udp --dport 51520 -m conntrack --ctstate NEW -j ACCEPT
-
-iptables -A INPUT -s 10.0.0.0/24 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
-iptables -A INPUT -s 10.0.0.0/24 -p udp -m udp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
-
-iptables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate NEW -j ACCEPT
-
-iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o eth0 -j MASQUERADE
-
-#save the iptables
-apt install iptables-persistent -y
-systemctl enable netfilter-persistent
-netfilter-persistent save
+# configure firewall rule
+iptables -I FORWARD -i wg0 -j ACCEPT
+iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+ip6tables -I FORWARD -i wg0 -j ACCEPT
+ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+ip6tables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 
