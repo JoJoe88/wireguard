@@ -35,8 +35,8 @@ cat <<EOF >wg0.conf
 PrivateKey = $(cat sprivatekey)
 Address = 10.0.0.1/24, ${ipv6_range}1/64
 ListenPort = 51520
-DNS = 8.8.8.8, 2001:4860:4860::8888
-MTU = $mtu
+# DNS = 8.8.8.8, 2001:4860:4860::8888
+# MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
@@ -94,8 +94,8 @@ EOF
 done
 
 # 启动WireGuard
-chown -v root:root /etc/wireguard/wg0.conf
-chmod -v 600 /etc/wireguard/wg0.conf
+# chown -v root:root /etc/wireguard/wg0.conf
+# chmod -v 600 /etc/wireguard/wg0.conf
 wg-quick up wg0
 
 #Enables the interface on boot
