@@ -106,9 +106,16 @@ echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.all.forwarding=1" >> /etc/sysctl.conf
 echo "net.ipv6.conf.default.accept_ra=2" >> /etc/sysctl.conf
 sysctl -p
+echo 1 > /proc/sys/net/ipv4/ip_forward
 
 # configure firewall rule
+iptables -A INPUT -p udp -m udp --dport 51520 -m conntrack --ctstate NEW -j ACCEPT
+ip6tables -A INPUT -p udp -m udp --dport 51520 -m conntrack --ctstate NEW -j ACCEPT
+iptables -A INPUT -s 10.0.0.0/24 -m conntrack --ctstate NEW -j ACCEPT
+ip6tables -A INPUT -s 10.0.0.0/24 -m conntrack --ctstate NEW -j ACCEPT
 iptables -I FORWARD -i wg0 -j ACCEPT
+iptables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate NEW -j ACCEPT
+ip6tables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate NEW -j ACCEPT
 iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 ip6tables -I FORWARD -i wg0 -j ACCEPT
 ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
