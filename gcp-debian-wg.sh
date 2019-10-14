@@ -108,9 +108,7 @@ sysctl -p
 echo 1 > /proc/sys/net/ipv4/ip_forward
 
 # configure firewall rule
-iptables -I FORWARD -i wg0 -j ACCEPT
 iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-ip6tables -I FORWARD -i wg0 -j ACCEPT
 ip6tables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 ip6tables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
