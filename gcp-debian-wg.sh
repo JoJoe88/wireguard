@@ -56,6 +56,7 @@ MTU = $mtu
 
 [Peer]
 PublicKey = $(cat spublickey)
+PresharedKey = $(cat presharedkey)
 Endpoint = $serverip:$port
 AllowedIPs = 0.0.0.0/0, ::0/0
 PersistentKeepalive = 25
