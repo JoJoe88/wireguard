@@ -25,9 +25,9 @@ fi
 chmod 755 /etc/wireguard
 cd /etc/wireguard
 
-# 生成 密匙对(公匙+私匙)
+# 生成 密匙对(公匙+私匙),add Presharedkey
 wg genkey | tee sprivatekey | wg pubkey > spublickey
-wg genkey | tee cprivatekey | wg pubkey > cpublickey
+wg genkey | tee cprivatekey | wg pubkey > cpublickey | wg genpsk > presharedkey
 
 # 生成服务端配置文件
 cat <<EOF >wg0.conf
@@ -40,6 +40,7 @@ MTU = $mtu
 
 [Peer]
 PublicKey = $(cat cpublickey)
+PresharedKey = $(cat presharedkey)
 AllowedIPs = 10.18.0.100/32, ${ipv6_range}100
 EOF
 
@@ -66,11 +67,12 @@ do
     ip=10.18.0.${ip_list[$i]}
     ip6=${ipv6_range}${ip_list[$i]}
    
-    wg genkey | tee cprivatekey | wg pubkey > cpublickey
+    wg genkey | tee cprivatekey | wg pubkey > cpublickey | wg genpsk > presharedkey
 
     cat <<EOF >>wg0.conf
 [Peer]
 PublicKey = $(cat cpublickey)
+PresharedKey = $(cat presharedkey)
 AllowedIPs = $ip/32, $ip6
 EOF
 
@@ -83,11 +85,11 @@ MTU = $mtu
 
 [Peer]
 PublicKey = $(cat spublickey)
+PresharedKey = $(cat presharedkey)
 Endpoint = $serverip:$port
 AllowedIPs = 0.0.0.0/0, ::0/0
 PersistentKeepalive = 25
 EOF
-    cat /etc/wireguard/client_$i.conf | qrencode -o client_$i.png
 done
 
 # 启动WireGuard
